@@ -12,6 +12,12 @@
       "path": "/",
       "body": {"title": "Тест", "emoji": "😂", "tag": "тест", "type": "meme"},
       "expectedStatus": 201
+    },
+    {
+      "name": "GET comments",
+      "method": "GET",
+      "path": "/?comments_for=1",
+      "expectedStatus": 200
     }
   ]
 }

@@ -1,0 +1,10 @@
+ALTER TABLE memes ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+CREATE TABLE IF NOT EXISTS comments (
+  id SERIAL PRIMARY KEY,
+  meme_id INTEGER NOT NULL,
+  session_id TEXT NOT NULL,
+  author TEXT NOT NULL DEFAULT 'Аноним',
+  text TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);

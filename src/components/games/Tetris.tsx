@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { sounds } from "@/lib/sounds";
 
 const COLS = 10;
 const ROWS = 20;
@@ -155,6 +156,7 @@ export default function Tetris() {
     while (boardRef.current.length < ROWS) boardRef.current.unshift(Array(COLS).fill(0));
 
     if (cleared) {
+      if (cleared === 4) sounds.tetrisTetris(); else sounds.tetrisLine();
       const pts = [0, 100, 300, 500, 800][cleared] * (levelRef.current + 1);
       scoreRef.current += pts;
       linesRef.current += cleared;
@@ -172,6 +174,7 @@ export default function Tetris() {
     nextTypeRef.current = randType();
     const newPiece = { shape: SHAPES[nextType], x: 3, y: 0, type: nextType };
     if (collides(newPiece.shape, newPiece.x, newPiece.y)) {
+      sounds.tetrisGameOver();
       if (intervalRef.current) clearInterval(intervalRef.current);
       pieceRef.current = newPiece;
       draw();
@@ -212,9 +215,9 @@ export default function Tetris() {
       if (!started || gameOver || pausedRef.current) return;
       const p = pieceRef.current;
       if (e.key === "ArrowLeft") {
-        if (!collides(p.shape, p.x - 1, p.y)) { pieceRef.current = { ...p, x: p.x - 1 }; draw(); }
+        if (!collides(p.shape, p.x - 1, p.y)) { sounds.tetrisMove(); pieceRef.current = { ...p, x: p.x - 1 }; draw(); }
       } else if (e.key === "ArrowRight") {
-        if (!collides(p.shape, p.x + 1, p.y)) { pieceRef.current = { ...p, x: p.x + 1 }; draw(); }
+        if (!collides(p.shape, p.x + 1, p.y)) { sounds.tetrisMove(); pieceRef.current = { ...p, x: p.x + 1 }; draw(); }
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
         if (!collides(p.shape, p.x, p.y + 1)) { pieceRef.current = { ...p, y: p.y + 1 }; draw(); }
@@ -222,9 +225,10 @@ export default function Tetris() {
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         const r = rotate(p.shape);
-        if (!collides(r, p.x, p.y)) { pieceRef.current = { ...p, shape: r }; draw(); }
+        if (!collides(r, p.x, p.y)) { sounds.tetrisRotate(); pieceRef.current = { ...p, shape: r }; draw(); }
       } else if (e.key === " ") {
         e.preventDefault();
+        sounds.tetrisDrop();
         let ny = p.y;
         while (!collides(p.shape, p.x, ny + 1)) ny++;
         pieceRef.current = { ...p, y: ny };
@@ -242,9 +246,9 @@ export default function Tetris() {
     setPaused(np);
   };
 
-  const doRotate = () => { const p = pieceRef.current; const r = rotate(p.shape); if (!collides(r, p.x, p.y)) { pieceRef.current = { ...p, shape: r }; draw(); } };
-  const doLeft = () => { const p = pieceRef.current; if (!collides(p.shape, p.x - 1, p.y)) { pieceRef.current = { ...p, x: p.x - 1 }; draw(); } };
-  const doRight = () => { const p = pieceRef.current; if (!collides(p.shape, p.x + 1, p.y)) { pieceRef.current = { ...p, x: p.x + 1 }; draw(); } };
+  const doRotate = () => { const p = pieceRef.current; const r = rotate(p.shape); if (!collides(r, p.x, p.y)) { sounds.tetrisRotate(); pieceRef.current = { ...p, shape: r }; draw(); } };
+  const doLeft = () => { const p = pieceRef.current; if (!collides(p.shape, p.x - 1, p.y)) { sounds.tetrisMove(); pieceRef.current = { ...p, x: p.x - 1 }; draw(); } };
+  const doRight = () => { const p = pieceRef.current; if (!collides(p.shape, p.x + 1, p.y)) { sounds.tetrisMove(); pieceRef.current = { ...p, x: p.x + 1 }; draw(); } };
   const doDown = () => { const p = pieceRef.current; if (!collides(p.shape, p.x, p.y + 1)) { pieceRef.current = { ...p, y: p.y + 1 }; draw(); } else lock(); };
   const doHard = () => { const p = pieceRef.current; let ny = p.y; while (!collides(p.shape, p.x, ny + 1)) ny++; pieceRef.current = { ...p, y: ny }; lock(); };
 

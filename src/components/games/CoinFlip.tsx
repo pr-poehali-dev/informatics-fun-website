@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { sounds } from "@/lib/sounds";
 
 type Side = "heads" | "tails" | "edge";
 type Choice = "heads" | "tails";
@@ -26,6 +27,7 @@ export default function CoinFlip() {
 
   const handleFlip = (c: Choice) => {
     if (spinning) return;
+    sounds.coinFlip();
     setChoice(c);
     setResult(null);
     setSpinning(true);
@@ -33,6 +35,9 @@ export default function CoinFlip() {
     setTimeout(() => {
       const r = flip();
       const win = r === c;
+      if (r === "edge") sounds.coinEdge();
+      else if (win) sounds.coinWin();
+      else sounds.coinLose();
       setResult(r);
       setSpinning(false);
       setHistory(h => [{ choice: c, result: r, win }, ...h].slice(0, 10));

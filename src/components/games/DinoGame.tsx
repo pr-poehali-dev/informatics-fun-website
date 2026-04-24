@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { sounds } from "@/lib/sounds";
 
 const W = 600;
 const H = 150;
@@ -32,6 +33,7 @@ export default function DinoGame() {
 
   const jump = useCallback(() => {
     if (onGround.current) {
+      sounds.dinoJump();
       velY.current = -13;
       onGround.current = false;
     }
@@ -143,6 +145,7 @@ export default function DinoGame() {
     const dx = DINO_X, dy = dinoY.current;
     for (const c of cactuses.current) {
       if (dx + DINO_W - 6 > c.x + 4 && dx + 6 < c.x + c.w - 4 && dy + DINO_H - 4 > GROUND - c.h) {
+        sounds.dinoDie();
         runningRef.current = false;
         setBest(b => Math.max(b, Math.floor(scoreVal.current)));
         setGameOver(true);
@@ -151,8 +154,11 @@ export default function DinoGame() {
       }
     }
 
+    const prevScore = Math.floor(scoreVal.current);
     scoreVal.current += 0.15;
-    if (frameCount.current % 10 === 0) setScore(Math.floor(scoreVal.current));
+    const newScore = Math.floor(scoreVal.current);
+    if (frameCount.current % 10 === 0) setScore(newScore);
+    if (Math.floor(newScore / 100) > Math.floor(prevScore / 100)) sounds.dinoScore();
 
     drawFrame();
     animRef.current = requestAnimationFrame(gameLoop);

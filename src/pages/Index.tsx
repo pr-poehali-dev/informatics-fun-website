@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import Tetris from "@/components/games/Tetris";
 import DinoGame from "@/components/games/DinoGame";
@@ -29,6 +29,15 @@ interface ContentItem {
   tag: string;
   type: string;
   user_vote?: string | null;
+  image_url?: string | null;
+  comment_count?: number;
+}
+
+interface Comment {
+  id: number;
+  author: string;
+  text: string;
+  created_at: string;
 }
 
 // --- Mini Games ---
@@ -43,9 +52,11 @@ function WordGame() {
 
   const handleGuess = () => {
     if (input.toUpperCase() === words[current]) {
+      import("@/lib/sounds").then(m => m.sounds.wordCorrect());
       setScore(s => s + 1);
       setStatus("win");
       setTimeout(() => {
+        import("@/lib/sounds").then(m => m.sounds.wordWin());
         const next = (current + 1) % words.length;
         setCurrent(next);
         setScrambled(scramble(words[next]));
@@ -53,6 +64,7 @@ function WordGame() {
         setStatus("idle");
       }, 800);
     } else {
+      import("@/lib/sounds").then(m => m.sounds.wordWrong());
       setStatus("lose");
       setTimeout(() => setStatus("idle"), 600);
     }
@@ -103,8 +115,11 @@ function EmojiGuess() {
 
   const check = () => {
     if (input.toUpperCase().includes(puzzles[idx].answer)) {
+      import("@/lib/sounds").then(m => m.sounds.emojiCorrect());
       setSolved(true);
       setScore(s => s + 1);
+    } else {
+      import("@/lib/sounds").then(m => m.sounds.emojiWrong());
     }
   };
 
@@ -155,13 +170,15 @@ function LuckyButton() {
   const [spinning, setSpinning] = useState(false);
 
   const spin = () => {
+    import("@/lib/sounds").then(m => m.sounds.luckyClick());
     setSpinning(true);
     setResult(null);
     setTimeout(() => {
-      setResult({
-        emoji: reactions[Math.floor(Math.random() * reactions.length)],
-        msg: messages[Math.floor(Math.random() * messages.length)],
-      });
+      const emoji = reactions[Math.floor(Math.random() * reactions.length)];
+      const msg = messages[Math.floor(Math.random() * messages.length)];
+      const isWin = ["Тебе повезло!", "Редкая удача!", "Джекпот!", "Вот это удача!", "Звёзды сошлись!"].includes(msg);
+      import("@/lib/sounds").then(m => isWin ? m.sounds.luckyWin() : m.sounds.luckyLose());
+      setResult({ emoji, msg });
       setSpinning(false);
     }, 800);
   };
@@ -185,6 +202,35 @@ function LuckyButton() {
 }
 
 // --- Add Meme Form ---
+function compressImage(file: File, maxW = 800): Promise<{ b64: string; ext: string }> {
+  return new Promise((resolve) => {
+    const isGif = file.type === "image/gif";
+    if (isGif) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const b64 = (reader.result as string).split(",")[1];
+        resolve({ b64, ext: "gif" });
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      const b64 = canvas.toDataURL("image/jpeg", 0.72).split(",")[1];
+      resolve({ b64, ext: "jpg" });
+    };
+    img.src = url;
+  });
+}
+
 function AddMemeForm({ onAdded }: { onAdded: () => void }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -194,18 +240,52 @@ function AddMemeForm({ onAdded }: { onAdded: () => void }) {
   const [type, setType] = useState<"meme" | "joke">("meme");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setImageFile(f);
+    setImagePreview(URL.createObjectURL(f));
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
 
   const submit = async () => {
     if (!title.trim()) return;
     setLoading(true);
+    let image_url: string | null = null;
+
+    if (imageFile) {
+      setUploadProgress("Сжимаем фото...");
+      const { b64, ext } = await compressImage(imageFile);
+      setUploadProgress("Загружаем...");
+      const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
+        body: JSON.stringify({ action: "upload_image", data: b64, ext }),
+      });
+      const data = await res.json();
+      image_url = data.url || null;
+      setUploadProgress("");
+    }
+
     await fetch(API, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
-      body: JSON.stringify({ title, text, emoji, tag: tag || "общее", type }),
+      body: JSON.stringify({ title, text, emoji, tag: tag || "общее", type, image_url }),
     });
     setLoading(false);
     setDone(true);
     setTitle(""); setText(""); setEmoji("😂"); setTag(""); setType("meme");
+    removeImage();
     setTimeout(() => { setDone(false); setOpen(false); onAdded(); }, 1200);
   };
 
@@ -273,12 +353,29 @@ function AddMemeForm({ onAdded }: { onAdded: () => void }) {
         className="w-full border border-border rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-foreground/20 bg-white text-sm"
       />
 
+      {/* Загрузка фото/гиф */}
+      {!imagePreview ? (
+        <label className="flex items-center gap-2 cursor-pointer border border-dashed border-border rounded-xl px-4 py-3 text-sm text-muted-foreground hover:border-foreground/40 transition-colors">
+          <Icon name="Image" size={16} />
+          Прикрепить фото или GIF
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+        </label>
+      ) : (
+        <div className="relative rounded-xl overflow-hidden border border-border">
+          <img src={imagePreview} alt="preview" className="w-full max-h-48 object-cover" />
+          <button
+            onClick={removeImage}
+            className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-black/80"
+          >✕</button>
+        </div>
+      )}
+
       <button
         onClick={submit}
         disabled={loading || !title.trim()}
         className="w-full bg-foreground text-background py-2.5 rounded-xl font-medium hover:bg-foreground/80 transition-colors disabled:opacity-50"
       >
-        {done ? "✓ Добавлено!" : loading ? "Сохраняем..." : "Опубликовать"}
+        {done ? "✓ Добавлено!" : loading ? (uploadProgress || "Сохраняем...") : "Опубликовать"}
       </button>
     </div>
   );
@@ -326,6 +423,105 @@ function LikeBar({ item, onVote }: { item: ContentItem; onVote: (id: number, lik
   );
 }
 
+// --- Comments ---
+function CommentSection({ memeId }: { memeId: number }) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [author, setAuthor] = useState("");
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const load = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}?comments_for=${memeId}`, {
+        headers: { "X-Session-Id": getSessionId() },
+      });
+      const data = await res.json();
+      setComments(data.comments || []);
+      setLoaded(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const send = async () => {
+    const t = text.trim();
+    if (!t) return;
+    setSending(true);
+    try {
+      const res = await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
+        body: JSON.stringify({ action: "comment", meme_id: memeId, text: t, author: author.trim() || "Аноним" }),
+      });
+      const data = await res.json();
+      if (data.id) {
+        setComments(c => [...c, data]);
+        setText("");
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!loaded) {
+    return (
+      <button onClick={load} disabled={loading}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mt-1">
+        <Icon name="MessageCircle" size={13} />
+        {loading ? "Загрузка..." : `Комментарии${(comments.length || "") && ` (${comments.length})`}`}
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-3 border-t border-border pt-3 space-y-3">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+        <Icon name="MessageCircle" size={13} />
+        Комментарии {comments.length > 0 && <span className="text-muted-foreground">({comments.length})</span>}
+      </div>
+      {comments.length === 0 && <p className="text-xs text-muted-foreground">Пока нет комментариев</p>}
+      <div className="space-y-2 max-h-48 overflow-y-auto">
+        {comments.map(c => (
+          <div key={c.id} className="bg-secondary/50 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-xs font-semibold text-foreground">{c.author}</span>
+              <span className="text-[10px] text-muted-foreground">{new Date(c.created_at).toLocaleDateString("ru")}</span>
+            </div>
+            <p className="text-xs text-foreground/80 leading-relaxed">{c.text}</p>
+          </div>
+        ))}
+      </div>
+      <div className="space-y-1.5">
+        <input
+          value={author}
+          onChange={e => setAuthor(e.target.value)}
+          placeholder="Имя (необязательно)"
+          maxLength={30}
+          className="w-full border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-foreground/20 bg-white"
+        />
+        <div className="flex gap-1.5">
+          <input
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && send()}
+            placeholder="Написать комментарий..."
+            maxLength={500}
+            className="flex-1 border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-foreground/20 bg-white"
+          />
+          <button onClick={send} disabled={sending || !text.trim()}
+            className="bg-foreground text-background px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-foreground/80 transition-colors">
+            {sending ? "..." : "→"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Content Card ---
 function ContentCard({ item, idx, onVote }: { item: ContentItem; idx: number; onVote: (id: number, likes: number, dislikes: number, vote: string | null) => void }) {
   return (
@@ -339,7 +535,13 @@ function ContentCard({ item, idx, onVote }: { item: ContentItem; idx: number; on
       </div>
       <h3 className="font-display font-semibold text-base text-foreground leading-snug">{item.title}</h3>
       {item.text && <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{item.text}</p>}
+      {item.image_url && (
+        <div className="rounded-xl overflow-hidden border border-border">
+          <img src={item.image_url} alt={item.title} className="w-full max-h-64 object-cover" loading="lazy" />
+        </div>
+      )}
       <LikeBar item={item} onVote={onVote} />
+      <CommentSection memeId={item.id} />
     </div>
   );
 }
