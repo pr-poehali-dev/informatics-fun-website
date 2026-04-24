@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
-type Section = "home" | "memes" | "jokes" | "games" | "top";
+type Section = "home" | "memes" | "jokes" | "games" | "top" | "team";
 
 interface ContentItem {
   id: number;
@@ -319,6 +319,7 @@ export default function Index() {
     { id: "jokes", label: "Приколы", icon: "Laugh" },
     { id: "games", label: "Игры", icon: "Gamepad2" },
     { id: "top", label: "Рейтинг", icon: "TrendingUp" },
+    { id: "team", label: "Создатели", icon: "Users" },
   ];
 
   return (
@@ -538,6 +539,45 @@ export default function Index() {
 
             <div className="text-center mt-10 text-muted-foreground text-xs py-4">
               Рейтинг формируется на основе лайков и просмотров
+            </div>
+          </div>
+        )}
+
+        {/* TEAM */}
+        {section === "team" && (
+          <div>
+            <div className="flex items-center gap-3 mb-8">
+              <span className="text-3xl">👥</span>
+              <div>
+                <h1 className="font-display font-black text-3xl">Создатели</h1>
+                <p className="text-muted-foreground text-sm">Люди, которые сделали это возможным</p>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-6 max-w-xl">
+              {[
+                { name: "Рудник Сергей", role: "Со-основатель", emoji: "🚀" },
+                { name: "Беляев Владислав", role: "Со-основатель", emoji: "⭐" },
+              ].map((person, i) => (
+                <div
+                  key={person.name}
+                  className="card-hover bg-card border border-border rounded-2xl p-6 flex items-center gap-5 animate-fade-in opacity-0"
+                  style={{ animationDelay: `${i * 0.1}s`, animationFillMode: "forwards" }}
+                >
+                  <div className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center text-2xl flex-shrink-0">
+                    {person.emoji}
+                  </div>
+                  <div>
+                    <div className="font-display font-bold text-lg text-foreground">{person.name}</div>
+                    <div className="text-sm text-muted-foreground mt-0.5">{person.role}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-12 bg-secondary rounded-2xl p-6 max-w-xl text-center animate-fade-in opacity-0" style={{ animationDelay: "0.3s", animationFillMode: "forwards" }}>
+              <div className="text-3xl mb-3">😂</div>
+              <p className="text-muted-foreground text-sm">Сделано с юмором и хорошим настроением</p>
             </div>
           </div>
         )}
