@@ -1,0 +1,17 @@
+{
+  "tests": [
+    {
+      "name": "GET all memes",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "POST new meme",
+      "method": "POST",
+      "path": "/",
+      "body": {"title": "Тест", "emoji": "😂", "tag": "тест", "type": "meme"},
+      "expectedStatus": 201
+    }
+  ]
+}
