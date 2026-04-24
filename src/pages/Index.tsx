@@ -615,7 +615,7 @@ export default function Index() {
             <div className="grid sm:grid-cols-2 gap-6 max-w-xl">
               {[
                 { name: "Беляев Владислав", role: "Со-основатель", photo: "https://cdn.poehali.dev/projects/6ad2095d-97f6-4dd2-8055-f95e64d60317/bucket/120a854e-720f-4ebb-a737-65d6f36fa1ed.jpg" },
-                { name: "Рудник Сергей", role: "Со-основатель", photo: null },
+                { name: "Рудник Сергей", role: "Со-основатель", photo: "https://cdn.poehali.dev/projects/6ad2095d-97f6-4dd2-8055-f95e64d60317/bucket/d60dd28e-52c5-4407-8707-a75a6390ae4f.jpg" },
               ].map((person, i) => (
                 <div key={person.name}
                   className="card-hover bg-card border border-border rounded-2xl p-6 flex items-center gap-5 animate-fade-in opacity-0"
