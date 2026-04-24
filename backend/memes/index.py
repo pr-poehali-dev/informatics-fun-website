@@ -18,19 +18,18 @@ def err(msg, status=400):
     return {'statusCode': status, 'headers': CORS, 'body': json.dumps({'error': msg})}
 
 def handler(event: dict, context) -> dict:
-    """API для мемов: список, добавление, лайки/дизлайки."""
+    """API для мемов: список, добавление, лайки/дизлайки. action=vote для голосования."""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS, 'body': ''}
 
     method = event.get('httpMethod', 'GET')
-    path = event.get('path', '/')
     session_id = (event.get('headers') or {}).get('X-Session-Id', 'anon')
 
     conn = get_conn()
     cur = conn.cursor()
 
     try:
-        # GET /memes?type=meme|joke
+        # GET — список мемов
         if method == 'GET':
             meme_type = (event.get('queryStringParameters') or {}).get('type')
             if meme_type:
@@ -58,57 +57,61 @@ def handler(event: dict, context) -> dict:
 
             return ok({'memes': memes})
 
-        # POST /memes/vote
-        if method == 'POST' and 'vote' in path:
-            body = json.loads(event.get('body') or '{}')
-            meme_id = int(body.get('meme_id', 0))
-            new_vote = body.get('vote')
-
-            if not meme_id:
-                return err('meme_id обязателен')
-
-            cur.execute(
-                "SELECT vote FROM votes WHERE meme_id=%s AND session_id=%s",
-                (meme_id, session_id)
-            )
-            row = cur.fetchone()
-            old_vote = row[0] if row else None
-            if old_vote == 'removed':
-                old_vote = None
-
-            if old_vote == new_vote:
-                if old_vote == 'like':
-                    cur.execute("UPDATE memes SET likes=GREATEST(likes-1,0) WHERE id=%s", (meme_id,))
-                else:
-                    cur.execute("UPDATE memes SET dislikes=GREATEST(dislikes-1,0) WHERE id=%s", (meme_id,))
-                cur.execute("UPDATE votes SET vote='removed' WHERE meme_id=%s AND session_id=%s", (meme_id, session_id))
-                result_vote = None
-            elif old_vote and old_vote != new_vote:
-                if old_vote == 'like':
-                    cur.execute("UPDATE memes SET likes=GREATEST(likes-1,0), dislikes=dislikes+1 WHERE id=%s", (meme_id,))
-                else:
-                    cur.execute("UPDATE memes SET dislikes=GREATEST(dislikes-1,0), likes=likes+1 WHERE id=%s", (meme_id,))
-                cur.execute("UPDATE votes SET vote=%s WHERE meme_id=%s AND session_id=%s", (new_vote, meme_id, session_id))
-                result_vote = new_vote
-            else:
-                if new_vote == 'like':
-                    cur.execute("UPDATE memes SET likes=likes+1 WHERE id=%s", (meme_id,))
-                else:
-                    cur.execute("UPDATE memes SET dislikes=dislikes+1 WHERE id=%s", (meme_id,))
-                cur.execute(
-                    "INSERT INTO votes (meme_id, session_id, vote) VALUES (%s,%s,%s) ON CONFLICT (meme_id,session_id) DO UPDATE SET vote=%s",
-                    (meme_id, session_id, new_vote, new_vote)
-                )
-                result_vote = new_vote
-
-            conn.commit()
-            cur.execute("SELECT likes, dislikes FROM memes WHERE id=%s", (meme_id,))
-            r = cur.fetchone()
-            return ok({'likes': r[0], 'dislikes': r[1], 'user_vote': result_vote})
-
-        # POST /memes — новый мем
         if method == 'POST':
             body = json.loads(event.get('body') or '{}')
+            action = body.get('action', 'create')
+
+            # Голосование
+            if action == 'vote':
+                meme_id = int(body.get('meme_id', 0))
+                new_vote = body.get('vote')
+
+                if not meme_id:
+                    return err('meme_id обязателен')
+
+                cur.execute(
+                    "SELECT vote FROM votes WHERE meme_id=%s AND session_id=%s",
+                    (meme_id, session_id)
+                )
+                row = cur.fetchone()
+                old_vote = row[0] if row else None
+                if old_vote == 'removed':
+                    old_vote = None
+
+                if old_vote == new_vote:
+                    # Снять голос
+                    if old_vote == 'like':
+                        cur.execute("UPDATE memes SET likes=GREATEST(likes-1,0) WHERE id=%s", (meme_id,))
+                    else:
+                        cur.execute("UPDATE memes SET dislikes=GREATEST(dislikes-1,0) WHERE id=%s", (meme_id,))
+                    cur.execute("UPDATE votes SET vote='removed' WHERE meme_id=%s AND session_id=%s", (meme_id, session_id))
+                    result_vote = None
+                elif old_vote and old_vote != new_vote:
+                    # Сменить голос
+                    if old_vote == 'like':
+                        cur.execute("UPDATE memes SET likes=GREATEST(likes-1,0), dislikes=dislikes+1 WHERE id=%s", (meme_id,))
+                    else:
+                        cur.execute("UPDATE memes SET dislikes=GREATEST(dislikes-1,0), likes=likes+1 WHERE id=%s", (meme_id,))
+                    cur.execute("UPDATE votes SET vote=%s WHERE meme_id=%s AND session_id=%s", (new_vote, meme_id, session_id))
+                    result_vote = new_vote
+                else:
+                    # Новый голос
+                    if new_vote == 'like':
+                        cur.execute("UPDATE memes SET likes=likes+1 WHERE id=%s", (meme_id,))
+                    else:
+                        cur.execute("UPDATE memes SET dislikes=dislikes+1 WHERE id=%s", (meme_id,))
+                    cur.execute(
+                        "INSERT INTO votes (meme_id, session_id, vote) VALUES (%s,%s,%s) ON CONFLICT (meme_id,session_id) DO UPDATE SET vote=%s",
+                        (meme_id, session_id, new_vote, new_vote)
+                    )
+                    result_vote = new_vote
+
+                conn.commit()
+                cur.execute("SELECT likes, dislikes FROM memes WHERE id=%s", (meme_id,))
+                r = cur.fetchone()
+                return ok({'likes': r[0], 'dislikes': r[1], 'user_vote': result_vote})
+
+            # Создать мем
             title = (body.get('title') or '').strip()
             text = (body.get('text') or '').strip() or None
             emoji = (body.get('emoji') or '😂').strip()

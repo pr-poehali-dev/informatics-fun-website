@@ -289,10 +289,10 @@ function LikeBar({ item, onVote }: { item: ContentItem; onVote: (id: number, lik
     if (loading) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API}/vote`, {
+      const res = await fetch(API, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
-        body: JSON.stringify({ meme_id: item.id, vote: v }),
+        body: JSON.stringify({ action: "vote", meme_id: item.id, vote: v }),
       });
       const data = await res.json();
       onVote(item.id, data.likes, data.dislikes, data.user_vote);
