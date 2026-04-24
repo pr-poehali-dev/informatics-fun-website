@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
+import Tetris from "@/components/games/Tetris";
+import DinoGame from "@/components/games/DinoGame";
 
 const API = "https://functions.poehali.dev/8587ed17-e0c6-4cf1-a91d-bb16becc28ce";
 
@@ -367,7 +369,7 @@ function TopCard({ item, rank }: { item: ContentItem; rank: number }) {
 // --- Main ---
 export default function Index() {
   const [section, setSection] = useState<Section>("home");
-  const [activeGame, setActiveGame] = useState<"word" | "emoji" | "lucky">("word");
+  const [activeGame, setActiveGame] = useState<"word" | "emoji" | "lucky" | "tetris" | "dino">("word");
   const [allMemes, setAllMemes] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -558,12 +560,14 @@ export default function Index() {
                 <p className="text-muted-foreground text-sm">Интерактивные развлечения</p>
               </div>
             </div>
-            <div className="flex gap-2 mb-6">
+            <div className="flex flex-wrap gap-2 mb-6">
               {([
                 { id: "word", label: "🔤 Слова", desc: "Собери слово из букв" },
                 { id: "emoji", label: "😶 Эмодзи", desc: "Угадай по эмодзи" },
                 { id: "lucky", label: "🍀 Удача", desc: "Испытай судьбу" },
-              ] as { id: "word" | "emoji" | "lucky"; label: string; desc: string }[]).map(g => (
+                { id: "tetris", label: "🟦 Тетрис", desc: "Классический тетрис" },
+                { id: "dino", label: "🦕 Динозавр", desc: "Хром динозаврик" },
+              ] as { id: "word" | "emoji" | "lucky" | "tetris" | "dino"; label: string; desc: string }[]).map(g => (
                 <button key={g.id} onClick={() => setActiveGame(g.id)}
                   className={`flex-1 text-center py-3 px-2 rounded-xl border text-sm font-medium transition-colors ${activeGame === g.id ? "bg-foreground text-background border-foreground" : "border-border hover:border-foreground/30 text-foreground"}`}>
                   <div>{g.label}</div>
@@ -575,6 +579,16 @@ export default function Index() {
               {activeGame === "word" && <WordGame />}
               {activeGame === "emoji" && <EmojiGuess />}
               {activeGame === "lucky" && <LuckyButton />}
+              {activeGame === "tetris" && (
+                <div className="p-4 flex justify-center">
+                  <Tetris />
+                </div>
+              )}
+              {activeGame === "dino" && (
+                <div className="p-4 flex justify-center overflow-x-auto">
+                  <DinoGame />
+                </div>
+              )}
             </div>
           </div>
         )}
