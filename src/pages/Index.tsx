@@ -614,14 +614,17 @@ export default function Index() {
             </div>
             <div className="grid sm:grid-cols-2 gap-6 max-w-xl">
               {[
-                { name: "Рудник Сергей", role: "Со-основатель", emoji: "🚀" },
-                { name: "Беляев Владислав", role: "Со-основатель", emoji: "⭐" },
+                { name: "Беляев Владислав", role: "Со-основатель", photo: "https://cdn.poehali.dev/projects/6ad2095d-97f6-4dd2-8055-f95e64d60317/bucket/120a854e-720f-4ebb-a737-65d6f36fa1ed.jpg" },
+                { name: "Рудник Сергей", role: "Со-основатель", photo: null },
               ].map((person, i) => (
                 <div key={person.name}
                   className="card-hover bg-card border border-border rounded-2xl p-6 flex items-center gap-5 animate-fade-in opacity-0"
                   style={{ animationDelay: `${i * 0.1}s`, animationFillMode: "forwards" }}>
-                  <div className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center text-2xl flex-shrink-0">
-                    {person.emoji}
+                  <div className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
+                    {person.photo
+                      ? <img src={person.photo} alt={person.name} className="w-full h-full object-cover" />
+                      : <span>🚀</span>
+                    }
                   </div>
                   <div>
                     <div className="font-display font-bold text-lg text-foreground">{person.name}</div>
